@@ -62,16 +62,16 @@ public class CarController : MonoBehaviour
         //turn input
         turnInput = Input.GetAxis("Horizontal");
 
-        if ( grounded && Input.GetAxis("Vertical") != 0)
+       /* if ( grounded && Input.GetAxis("Vertical") != 0)
         {
-            transform.rotation = UnityEngine.Quaternion.Euler (transform.rotation.eulerAngles + new UnityEngine.Vector3(0f, turnInput * turnStrength * Time.deltaTime * Mathf.Sign (speedInput) *(theRB .velocity.magnitude / maxSpeed) , 0f));
-        }
+             transform.rotation = UnityEngine.Quaternion.Euler (transform.rotation.eulerAngles + new UnityEngine.Vector3(0f, turnInput * turnStrength * Time.deltaTime * Mathf.Sign (speedInput) *(theRB .velocity.magnitude / maxSpeed) , 0f));
+        } */
 
         //wheel Turn Left Right
         leftFrontWheel.localRotation = UnityEngine.Quaternion.Euler(leftFrontWheel.localRotation.eulerAngles.x, (turnInput * maxWheelTurn)-180, leftFrontWheel.localRotation.eulerAngles.z);
         rightFrontWheel.localRotation = UnityEngine.Quaternion.Euler(rightFrontWheel.localRotation.eulerAngles.x, (turnInput * maxWheelTurn), rightFrontWheel.localRotation.eulerAngles.z);
 
-        transform.position = theRB.position;
+        //transform.position = theRB.position;
 
 
         //control partical emissions
@@ -143,6 +143,13 @@ public class CarController : MonoBehaviour
             theRB.velocity = theRB.velocity.normalized * maxSpeed;
         }
         Debug.Log(theRB.velocity.magnitude);
+
+        transform.position = theRB.position;
+
+        if (grounded && Input.GetAxis("Vertical") != 0)
+        {
+            transform.rotation = UnityEngine.Quaternion.Euler(transform.rotation.eulerAngles + new UnityEngine.Vector3(0f, turnInput * turnStrength * Time.deltaTime * Mathf.Sign(speedInput) * (theRB.velocity.magnitude / maxSpeed), 0f));
+        }
     }
 
 
