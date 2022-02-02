@@ -28,7 +28,6 @@ public class CarController : MonoBehaviour
     private float dragOnGround;
     public float gravityMod = 10f;
 
-
     //wheel turn left right
     public Transform leftFrontWheel, rightFrontWheel;
     public float maxWheelTurn = 25f;
@@ -39,39 +38,58 @@ public class CarController : MonoBehaviour
     private float emissionRate;
 
     //car sounds
-    public AudioSource engineSound;
+    public AudioSource engineSound, skidSound;
+    public float skidFadeSpeed;
 
+    //checkpoints laps
+    private int nextCheckpoint;
+    public int currentLap;
 
-    
+    //laptimes
+    public float lapTime, bestLapTime;
+
     // Start is called before the first frame update
     void Start()
     {
         theRB.transform.parent = null;
+
         dragOnGround = theRB.drag;
+
+        UIManager.instance.lapCounterText.text = currentLap + "/" + RaceManager.instance.totalLaps;
+
     }
 
     // Update is called once per frame
     void Update()
     {
+        //laptime & sec count
+        lapTime += Time.deltaTime;
+
+        //converts  ts /timespant to lapTime then to the laptime in the UI
+        var ts = System.TimeSpan.FromSeconds(lapTime);
+        UIManager.instance.currentLapTimeText.text = string.Format("{0:00}m{1:00}.{2:000}s", ts.Minutes, ts.Seconds, ts.Milliseconds);
+
+
         //forward and Reverse
         speedInput = 0f;
-        if(Input.GetAxis("Vertical") > 0 )
+        if (Input.GetAxis("Vertical") > 0)
         {
             speedInput = Input.GetAxis("Vertical") * forwardAccel;
-        } else if (Input.GetAxis("Vertical") < 0)
+        }
+        else if (Input.GetAxis("Vertical") < 0)
         {
             speedInput = Input.GetAxis("Vertical") * reverseAccel;
         }
         //turn input
         turnInput = Input.GetAxis("Horizontal");
 
-       /* if ( grounded && Input.GetAxis("Vertical") != 0)
-        {
-             transform.rotation = UnityEngine.Quaternion.Euler (transform.rotation.eulerAngles + new UnityEngine.Vector3(0f, turnInput * turnStrength * Time.deltaTime * Mathf.Sign (speedInput) *(theRB .velocity.magnitude / maxSpeed) , 0f));
-        } */
+        /* if ( grounded && Input.GetAxis("Vertical") != 0)
+         {
+              transform.rotation = UnityEngine.Quaternion.Euler (transform.rotation.eulerAngles + new UnityEngine.Vector3(0f, turnInput * turnStrength * Time.deltaTime * Mathf.Sign (speedInput) *(theRB .velocity.magnitude / maxSpeed) , 0f));
+         } */
 
         //wheel Turn Left Right
-        leftFrontWheel.localRotation = UnityEngine.Quaternion.Euler(leftFrontWheel.localRotation.eulerAngles.x, (turnInput * maxWheelTurn)-180, leftFrontWheel.localRotation.eulerAngles.z);
+        leftFrontWheel.localRotation = UnityEngine.Quaternion.Euler(leftFrontWheel.localRotation.eulerAngles.x, (turnInput * maxWheelTurn) - 180, leftFrontWheel.localRotation.eulerAngles.z);
         rightFrontWheel.localRotation = UnityEngine.Quaternion.Euler(rightFrontWheel.localRotation.eulerAngles.x, (turnInput * maxWheelTurn), rightFrontWheel.localRotation.eulerAngles.z);
 
         //transform.position = theRB.position;
@@ -80,59 +98,85 @@ public class CarController : MonoBehaviour
         //control partical emissions
         emissionRate = Mathf.MoveTowards(emissionRate, 0f, emissionFadeSpeed * Time.deltaTime);
 
-        if (grounded && (Mathf.Abs(turnInput) > .5f || (theRB.velocity.magnitude < maxSpeed * .5f && theRB.velocity.magnitude != 0))) 
+        if (grounded && (Mathf.Abs(turnInput) > .5f || (theRB.velocity.magnitude < maxSpeed * .5f && theRB.velocity.magnitude != 0)))
         {
             emissionRate = maxEmission;
         }
-        
-        if(theRB.velocity.magnitude <= .5f)
+
+        if (theRB.velocity.magnitude <= .5f)
         {
             emissionRate = 0;
         }
 
-        for(int i = 0; i < dustTrail.Length; i++)
+        for (int i = 0; i < dustTrail.Length; i++)
         {
             var emissionModule = dustTrail[i].emission;
 
             emissionModule.rateOverTime = emissionRate;
         }
         //sound of pitch to speed of the car
-        if(engineSound != null)
+        if (engineSound != null)
         {
-            engineSound.pitch = 0.79f + ((theRB.velocity.magnitude / maxSpeed) * 2f);
+            engineSound.pitch = 1f + ((theRB.velocity.magnitude / maxSpeed) * 2f);
         }
 
+        //skidSound
 
+        if(skidSound != null)
+        {
+            if(grounded && Mathf.Abs(turnInput) > .8f && theRB.velocity.magnitude >= 7f)
+
+            {
+                skidSound.volume = 1;
+            } else
+            {
+                skidSound.volume = Mathf.MoveTowards(skidSound.volume, 0f, skidFadeSpeed * Time.deltaTime);
+            }
+        }
+        // if (skidSound != null)
+        // {
+        //     if (Mathf.Abs(turnInput) > 0.9f)
+        //     {
+        //         skidSound.volume = 1f;
+        //     }
+        //     else
+        //     {
+        //         skidSound.volume = Mathf.MoveTowards(skidSound.volume, 0f, skidFadeSpeed * Time.deltaTime);
+        //     }
+        //     if (theRB.velocity.magnitude <= 0.9f)
+        //     // grounded = false;
+
+        //     {
+        //         skidSound.volume = 0;
+        //     }
+
+        // }
     }
-
     private void FixedUpdate()
     {
-
         //ground fixed update
 
         grounded = false;
         UnityEngine.Vector3 normalTarget = UnityEngine.Vector3.zero;
         RaycastHit hit;
-        if (Physics.Raycast(groundedRayPoint.position, -transform.up, out hit, groundRayLength, WhatIsGround)) 
+        if (Physics.Raycast(groundedRayPoint.position, -transform.up, out hit, groundRayLength, WhatIsGround))
         {
             grounded = true;
             normalTarget = hit.normal;
         }
 
-        if(Physics.Raycast(groundedRayPoint2.position, -transform.up, out hit, groundRayLength, WhatIsGround))
+        if (Physics.Raycast(groundedRayPoint2.position, -transform.up, out hit, groundRayLength, WhatIsGround))
         {
             grounded = true;
             normalTarget = (normalTarget + hit.normal) / 2f;
         }
-      
+
         //when on ground rotate rotate to match the normal (green up and down is the Normal)
 
-        if(grounded)
+        if (grounded)
         {
-            transform.rotation = UnityEngine.Quaternion.FromToRotation(transform.up, normalTarget) *transform.rotation;
+            transform.rotation = UnityEngine.Quaternion.FromToRotation(transform.up, normalTarget) * transform.rotation;
         }
-
-
 
         //speed and Accelerate fixed update
 
@@ -140,7 +184,8 @@ public class CarController : MonoBehaviour
         {
             theRB.drag = dragOnGround;
             theRB.AddForce(transform.forward * speedInput * 1000f);
-        } else
+        }
+        else
         {
             theRB.drag = .1f;
             theRB.AddForce(-UnityEngine.Vector3.up * gravityMod * 100f);
@@ -150,7 +195,7 @@ public class CarController : MonoBehaviour
         {
             theRB.velocity = theRB.velocity.normalized * maxSpeed;
         }
-        Debug.Log(theRB.velocity.magnitude);
+        //Debug.Log(theRB.velocity.magnitude);
 
         transform.position = theRB.position;
 
@@ -159,6 +204,38 @@ public class CarController : MonoBehaviour
             transform.rotation = UnityEngine.Quaternion.Euler(transform.rotation.eulerAngles + new UnityEngine.Vector3(0f, turnInput * turnStrength * Time.deltaTime * Mathf.Sign(speedInput) * (theRB.velocity.magnitude / maxSpeed), 0f));
         }
     }
+    //checkpoint hit
+public void checkpointHit(int cpNumber)
+{
+    if(cpNumber == nextCheckpoint)
+    {
+        nextCheckpoint++;
 
+        //racemanager script call
+        if(nextCheckpoint == RaceManager.instance.allCheckpoints.Length)
+        {
+            nextCheckpoint = 0;
+            LapCompleted();
+        }
+    }
+//Debug.Log(cpNumber);
+}
+//lap UI diplay controll
+public void LapCompleted()
+{
+    currentLap++;
+    
+    if(lapTime < bestLapTime || bestLapTime == 0)
+    {
+        bestLapTime = lapTime;
+    }
+    lapTime = 0f;
+//bestlaptime aded converted into UI
+     var ts = System.TimeSpan.FromSeconds(bestLapTime);
+        UIManager.instance.bestLapTimeText.text = string.Format("{0:00}m{1:00}.{2:000}s", ts.Minutes, ts.Seconds, ts.Milliseconds);
+    
+    // calling UI  to manaage  lap count to text  current lap + lap count /total laps for canvas (pain in the .... dont lose this code again. )
+    UIManager.instance.lapCounterText.text = currentLap + "/" + RaceManager.instance.totalLaps;
+}
 
 }
