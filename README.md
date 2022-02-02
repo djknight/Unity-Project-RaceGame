@@ -6,9 +6,13 @@ Unity Project race game simple idears (more to come)
 Major update !!
 
 New maps.
+
 updated camera.
+
 Lap Counter.
+
 Lap Times.
+
 Best Laps.
 
 ![image](https://user-images.githubusercontent.com/24589212/152156984-8dd6ebfe-ce02-4fa7-8f0c-490a0604ca5c.png)
