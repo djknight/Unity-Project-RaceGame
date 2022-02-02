@@ -23,7 +23,6 @@ Fixed: smoke particles .
 //known bugs
 camera follow issue "in progress fixing".
 
-img
 ![image](https://user-images.githubusercontent.com/24589212/152156984-8dd6ebfe-ce02-4fa7-8f0c-490a0604ca5c.png)
 
 
