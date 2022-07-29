@@ -9,14 +9,17 @@ public class CameraController : MonoBehaviour
     private Vector3 offsetDir;
 
     //cam zoom / distance
-    public float minDistance,maxDistance;
+    public float minDistance, maxDistance;
     private float activeDistance;
+
+    //setting the start distance of the camera
+    public Transform startTargetOffset;
 
 
     // Start is called before the first frame update
     void Start()
     {
-        offsetDir = transform.position - target.transform.position;
+        offsetDir = transform.position - startTargetOffset.position;
 
         //Distance start
         activeDistance = minDistance;

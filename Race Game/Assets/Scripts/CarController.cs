@@ -48,12 +48,28 @@ public class CarController : MonoBehaviour
     //laptimes
     public float lapTime, bestLapTime;
 
+    //AI Cars
+    public bool isAI;
+
+    public int currentTarget;
+
+    //AI storing the postion Ai cars are chasing points
+    private UnityEngine.Vector3 targetPoint;
+    public float aiAccelerateSpeed = 1f, aiTurnSpeed = .8f, aiReachPointRange = 5f, aiPointVariance = 3f, aiMaxTurn = 15f;
+    private float aiSpeedInput;
+
     // Start is called before the first frame update
     void Start()
     {
         theRB.transform.parent = null;
 
         dragOnGround = theRB.drag;
+
+        if (isAI)
+        {
+            targetPoint = RaceManager.instance.allCheckpoints[currentTarget].transform.position;
+            RandomiseAITarget();
+        }
 
         UIManager.instance.lapCounterText.text = currentLap + "/" + RaceManager.instance.totalLaps;
 
@@ -65,28 +81,89 @@ public class CarController : MonoBehaviour
         //laptime & sec count
         lapTime += Time.deltaTime;
 
-        //converts  ts /timespant to lapTime then to the laptime in the UI
-        var ts = System.TimeSpan.FromSeconds(lapTime);
-        UIManager.instance.currentLapTimeText.text = string.Format("{0:00}m{1:00}.{2:000}s", ts.Minutes, ts.Seconds, ts.Milliseconds);
 
-
-        //forward and Reverse
-        speedInput = 0f;
-        if (Input.GetAxis("Vertical") > 0)
+        //if AI, don't do anything
+        if (!isAI)
         {
-            speedInput = Input.GetAxis("Vertical") * forwardAccel;
-        }
-        else if (Input.GetAxis("Vertical") < 0)
-        {
-            speedInput = Input.GetAxis("Vertical") * reverseAccel;
-        }
-        //turn input
-        turnInput = Input.GetAxis("Horizontal");
+            //converts  ts /timespant to lapTime then to the laptime in the UI
+            var ts = System.TimeSpan.FromSeconds(lapTime);
+            UIManager.instance.currentLapTimeText.text = string.Format("{0:00}m{1:00}.{2:000}s", ts.Minutes, ts.Seconds, ts.Milliseconds);
 
-        /* if ( grounded && Input.GetAxis("Vertical") != 0)
-         {
-              transform.rotation = UnityEngine.Quaternion.Euler (transform.rotation.eulerAngles + new UnityEngine.Vector3(0f, turnInput * turnStrength * Time.deltaTime * Mathf.Sign (speedInput) *(theRB .velocity.magnitude / maxSpeed) , 0f));
-         } */
+
+            //forward and Reverse
+            speedInput = 0f;
+            if (Input.GetAxis("Vertical") > 0)
+            {
+                speedInput = Input.GetAxis("Vertical") * forwardAccel;
+            }
+            else if (Input.GetAxis("Vertical") < 0)
+            {
+                speedInput = Input.GetAxis("Vertical") * reverseAccel;
+            }
+            //turn input
+            turnInput = Input.GetAxis("Horizontal");
+
+
+            //old code
+            // /* if ( grounded && Input.GetAxis("Vertical") != 0)
+            //   {
+            //       transform.rotation = UnityEngine.Quaternion.Euler (transform.rotation.eulerAngles + new UnityEngine.Vector3(0f, turnInput * turnStrength * Time.deltaTime * Mathf.Sign (speedInput) *(theRB .velocity.magnitude / maxSpeed) , 0f));
+            //  } */
+
+            // car AI ceckpoints positions & check if reached
+        }
+        else
+        {
+            targetPoint.y = transform.position.y;
+
+            if (UnityEngine.Vector3.Distance(transform.position, targetPoint) < aiReachPointRange)
+            {
+                SetNextAITarget();
+
+                //no longer neaded reapeatedly setting the target point
+
+                // currentTarget++;
+                // if (currentTarget >= RaceManager.instance.allCheckpoints.Length)
+                // {
+                //     currentTarget = 0;
+                // }
+                // targetPoint = RaceManager.instance.allCheckpoints[currentTarget].transform.position;
+                // RandomiseAITarget();
+
+            }
+
+            //odd code here (AI) (turning) (acelerate) (direction) if changed also affects player car ????
+
+            // vec3 target direction
+
+            UnityEngine.Vector3 TargetDIR = targetPoint - transform.position;
+            float angle = UnityEngine.Vector3.Angle(TargetDIR, transform.forward);
+
+            //position of the car Ai is facing towards
+            UnityEngine.Vector3 localPos = transform.InverseTransformPoint(targetPoint);
+            if (localPos.x < 0f)
+            {
+                angle = -angle;
+            }
+
+            turnInput = Mathf.Clamp(angle / aiMaxTurn, -1f, 1f);
+
+            //accelerate/angle/direction
+            if (Mathf.Abs(angle) < aiMaxTurn)
+            {
+                aiSpeedInput = Mathf.MoveTowards(aiSpeedInput, 1f, aiAccelerateSpeed);
+            }
+            else
+            {
+                aiSpeedInput = Mathf.MoveTowards(aiSpeedInput, aiTurnSpeed, aiAccelerateSpeed);
+            }
+
+
+            aiSpeedInput = 1f;
+            speedInput = aiSpeedInput * forwardAccel;
+        }
+
+
 
         //wheel Turn Left Right
         leftFrontWheel.localRotation = UnityEngine.Quaternion.Euler(leftFrontWheel.localRotation.eulerAngles.x, (turnInput * maxWheelTurn) - 180, leftFrontWheel.localRotation.eulerAngles.z);
@@ -122,17 +199,20 @@ public class CarController : MonoBehaviour
 
         //skidSound
 
-        if(skidSound != null)
+        if (skidSound != null)
         {
-            if(grounded && Mathf.Abs(turnInput) > .8f && theRB.velocity.magnitude >= 7f)
+            if (grounded && Mathf.Abs(turnInput) > .8f && theRB.velocity.magnitude >= 7f)
 
             {
                 skidSound.volume = 1;
-            } else
+            }
+            else
             {
                 skidSound.volume = Mathf.MoveTowards(skidSound.volume, 0f, skidFadeSpeed * Time.deltaTime);
             }
         }
+
+        //old code
         // if (skidSound != null)
         // {
         //     if (Mathf.Abs(turnInput) > 0.9f)
@@ -149,7 +229,6 @@ public class CarController : MonoBehaviour
         //     {
         //         skidSound.volume = 0;
         //     }
-
         // }
     }
     private void FixedUpdate()
@@ -205,37 +284,82 @@ public class CarController : MonoBehaviour
         }
     }
     //checkpoint hit
-public void checkpointHit(int cpNumber)
-{
-    if(cpNumber == nextCheckpoint)
+    public void checkpointHit(int cpNumber)
     {
-        nextCheckpoint++;
-
-        //racemanager script call
-        if(nextCheckpoint == RaceManager.instance.allCheckpoints.Length)
+        if (cpNumber == nextCheckpoint)
         {
-            nextCheckpoint = 0;
-            LapCompleted();
+            nextCheckpoint++;
+
+            //racemanager script call
+            if (nextCheckpoint == RaceManager.instance.allCheckpoints.Length)
+            {
+                nextCheckpoint = 0;
+                LapCompleted();
+            }
+
+            if (isAI)
+            {
+                if (cpNumber == currentTarget)
+                {
+                    SetNextAITarget();
+                }
+
+            }
+        }
+
+        //Debug.Log(cpNumber);
+    }
+    //ai if car hits waypoint then go to next waypoint if skipped the mark
+    public void SetNextAITarget()
+    {
+        currentTarget++;
+        if (currentTarget == RaceManager.instance.allCheckpoints.Length)
+        {
+            currentTarget = 0;
+        }
+        targetPoint = RaceManager.instance.allCheckpoints[currentTarget].transform.position;
+        RandomiseAITarget();
+    }
+    //lap UI diplay controll
+    public void LapCompleted()
+    {
+        currentLap++;
+
+        if (lapTime < bestLapTime || bestLapTime == 0)
+        {
+            bestLapTime = lapTime;
+        }
+        lapTime = 0f;
+        //bestlaptime aded converted into UI
+        if (!isAI)
+        {
+            var ts = System.TimeSpan.FromSeconds(bestLapTime);
+            UIManager.instance.bestLapTimeText.text = string.Format("{0:00}m{1:00}.{2:000}s", ts.Minutes, ts.Seconds, ts.Milliseconds);
+
+            // calling UI  to manaage  lap count to text  current lap + lap count /total laps for canvas (pain in the .... dont lose this code again. )
+            UIManager.instance.lapCounterText.text = currentLap + "/" + RaceManager.instance.totalLaps;
         }
     }
-//Debug.Log(cpNumber);
-}
-//lap UI diplay controll
-public void LapCompleted()
-{
-    currentLap++;
-    
-    if(lapTime < bestLapTime || bestLapTime == 0)
+
+    public void RandomiseAITarget()
     {
-        bestLapTime = lapTime;
+        targetPoint += new UnityEngine.Vector3(Random.Range(-aiPointVariance, aiPointVariance), 0f, Random.Range(-aiPointVariance, aiPointVariance));
+
+        // ai eazy med hard difficulty
+        // //randomise the AI
+        // int random = Random.Range(0, 3);
+        // if (random == 0)
+        // {
+        //     aiType = AIType.Easy;
+        // }
+        // else if (random == 1)
+        // {
+        //     aiType = AIType.Medium;
+        // }
+        // else if (random == 2)
+        // {
+        //     aiType = AIType.Hard;
+        // }
     }
-    lapTime = 0f;
-//bestlaptime aded converted into UI
-     var ts = System.TimeSpan.FromSeconds(bestLapTime);
-        UIManager.instance.bestLapTimeText.text = string.Format("{0:00}m{1:00}.{2:000}s", ts.Minutes, ts.Seconds, ts.Milliseconds);
-    
-    // calling UI  to manaage  lap count to text  current lap + lap count /total laps for canvas (pain in the .... dont lose this code again. )
-    UIManager.instance.lapCounterText.text = currentLap + "/" + RaceManager.instance.totalLaps;
-}
 
 }
