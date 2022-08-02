@@ -10,6 +10,11 @@ public class RaceManager : MonoBehaviour
 
     public int totalLaps;
 
+    public CarController playerCar;
+    public List <CarController> allAICars = new List<CarController>();
+
+
+
     private void Awake() {
         instance = this;
     }

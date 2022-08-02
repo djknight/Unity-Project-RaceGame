@@ -56,7 +56,7 @@ public class CarController : MonoBehaviour
     //AI storing the postion Ai cars are chasing points
     private UnityEngine.Vector3 targetPoint;
     public float aiAccelerateSpeed = 1f, aiTurnSpeed = .8f, aiReachPointRange = 5f, aiPointVariance = 3f, aiMaxTurn = 15f;
-    private float aiSpeedInput;
+    private float aiSpeedInput, aiSpeedMod;
 
     // Start is called before the first frame update
     void Start()
@@ -69,6 +69,8 @@ public class CarController : MonoBehaviour
         {
             targetPoint = RaceManager.instance.allCheckpoints[currentTarget].transform.position;
             RandomiseAITarget();
+
+            aiSpeedMod = Random.Range(.8f, 1.1f);
         }
 
         UIManager.instance.lapCounterText.text = currentLap + "/" + RaceManager.instance.totalLaps;
@@ -159,8 +161,8 @@ public class CarController : MonoBehaviour
             }
 
 
-            aiSpeedInput = 1f;
-            speedInput = aiSpeedInput * forwardAccel;
+            
+            speedInput = aiSpeedInput * forwardAccel * aiSpeedMod;
         }
 
 
@@ -204,7 +206,7 @@ public class CarController : MonoBehaviour
             if (grounded && Mathf.Abs(turnInput) > .8f && theRB.velocity.magnitude >= 7f)
 
             {
-                skidSound.volume = 1;
+                skidSound.volume = .200f;
             }
             else
             {
@@ -278,7 +280,7 @@ public class CarController : MonoBehaviour
 
         transform.position = theRB.position;
 
-        if (grounded && Input.GetAxis("Vertical") != 0)
+        if (grounded && speedInput != 0)
         {
             transform.rotation = UnityEngine.Quaternion.Euler(transform.rotation.eulerAngles + new UnityEngine.Vector3(0f, turnInput * turnStrength * Time.deltaTime * Mathf.Sign(speedInput) * (theRB.velocity.magnitude / maxSpeed), 0f));
         }
